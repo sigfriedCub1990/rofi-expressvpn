@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+
+spawn expressvpn activate
+
+expect "Enter activation code:" { send "$argv\r" }
+expect "Enter activation code:" { send "$argv\r" }
+set final_prompt "Help improve ExpressVPN: Share crash reports, speed tests, usability diagnostics, and whether VPN connection attempts succeed. These reports never contain personally identifiable information. (Y/n) "
+set prompt_end "(Y/n) $"
+expect "$final_prompt" { send "n\r" }
+expect "$final_prompt" { send "n\r" }

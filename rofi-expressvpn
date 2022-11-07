@@ -1,0 +1,313 @@
+#!/bin/bash
+#
+# This is a helper script to control ExpressVPN using Rofi.
+
+# Possible improvements
+# 1. Search within Rofi (is this possible?).
+# 1.1 It would be nice if I could search for a country and
+# see all the Locations that belong to that country, I'm
+# afraid that I don't know Rofi that well in order to figure
+# that out.
+# 2. All locations list parsing.
+
+NAME="$(basename "$0")"
+VERSION="0.1"
+
+KB_DISCONNECT="Alt+d"
+KB_ALL_LOCATIONS="Alt+m"
+KB_RECOMMENDED_LOCATIONS="Alt+r"
+KB_SMART_CONNECT="Alt+s"
+
+LOCATIONS=
+ENTER_CMD=connect
+ROFI_OPTIONS=()
+
+#############################
+# Display Rofi in dmenu mode.
+# Arguments:
+#   Locations
+#############################
+rofi_menu() {
+
+	actions=(
+		-kb-custom-1 "$KB_DISCONNECT"
+		-kb-custom-2 "$KB_ALL_LOCATIONS"
+		-kb-custom-3 "$KB_SMART_CONNECT"
+		-kb-custom-4 "$KB_RECOMMENDED_LOCATIONS"
+	)
+
+	msg="<b>$KB_SMART_CONNECT</b>: smart connect | <b>$KB_ALL_LOCATIONS</b>: display all locations | <b>$KB_RECOMMENDED_LOCATIONS</b>: display recommended locations"
+
+	connected=$(is_connected)
+	if [[ -n "$connected" ]]; then
+		msg+="| <b>$KB_DISCONNECT</b>: disconnect"
+		msg+=" "
+		msg+="<b>$connected</b>"
+	fi
+
+	rofi -dmenu -p "Select location" \
+		-i no-custom \
+		-mesg "$msg" \
+		-display-column-separator '\s' \
+		-markup-rows \
+		"${actions[@]}" \
+		"${ROFI_OPTIONS[@]}"
+
+}
+
+#########################################################
+# Connect to a given location, default to smart if empty.
+# Arguments:
+#   Location
+#########################################################
+connect() {
+	if [ -n "$1" ]; then
+		expressvpn connect "$1" >/dev/null &&
+			exit 0
+	else
+		expressvpn connect "smart" >/dev/null && exit 0
+	fi
+}
+
+disconnect() {
+	expressvpn disconnect >/dev/null
+}
+
+##############################################
+# Parse the output of ExpressVPN list command.
+# Arguments
+#   List subcommand (default is recommended)
+#   Output separator
+##############################################
+parse_vpn_locations_list() {
+	# The AWK script produces a Map where the key is the Country
+	# and the value is an Array with the Locations that belong
+	# to that Country
+	expressvpn list "$1" | grep -e '^[a-z]' | gawk -F "$2" '{
+            if ($2 != "" && !($2 in countries)) {
+                country = $2
+                countries[$2][0] = $1
+            } else {
+                len = length(countries[country]) + 1
+                countries[country][len] = $1
+            }
+        }
+        END {
+
+            for (country in countries) {
+                print "<b>" country  "</b>" " " "(" "<i>"length(countries[country])  "</i>"")"
+                for (location in countries[country]) {
+                    print "  " countries[country][location]
+                }
+            }
+        }'
+}
+
+#######################################
+# Load VPN locations to display in menu.
+# GLOBALS:
+#   LOCATIONS
+# ARGUMENTS
+#   List subcommand
+#######################################
+load_locations() {
+	local separator="\t"
+
+	if [[ "$1" == "recommended" ]]; then
+		LOCATIONS=$(parse_vpn_locations_list "$1" "$separator")
+	else
+		separator="[ \t\n]+"
+		LOCATIONS=$(
+			parse_vpn_locations_list "$1" "$separator"
+		)
+	fi
+}
+
+#################################################
+# Pass Locations to Rofi and handles user action.
+# Arguments:
+#   None
+#################################################
+show_locations() {
+	if item=$(
+		echo "$LOCATIONS" | rofi_menu
+	); then
+		location=$(echo "$item" | awk '{print $1}')
+		connected=$(is_connected)
+		if [[ -n "$connected" ]]; then
+			disconnect
+			"${ENTER_CMD[@]}" "$location"
+		else
+			"${ENTER_CMD[@]}" "$location"
+		fi
+	else
+		rofi_exit_code="$?"
+		on_rofi_exit "$rofi_exit_code"
+	fi
+}
+
+#######################################
+# Handle actions in the top menu.
+# Arguments:
+#   Action code
+#######################################
+on_rofi_exit() {
+	case "$1" in
+	10)
+		disconnect
+		show_locations
+		;;
+	11)
+		load_locations "all"
+		show_locations
+		;;
+	12)
+		"${ENTER_CMD[@]}"
+		;;
+	13)
+		load_locations "recommended"
+		show_locations
+		;;
+	*) exit "$1" ;;
+	esac
+}
+
+#####################################################
+# Display Rofi to introduce activation code and
+# calls `activate-vpn` script to complete activation.
+# Arguments:
+#   None
+#####################################################
+activate() {
+	activation_code=$(printf '' |
+		rofi -dmenu -p "Activation code" -password -l 0 "${ROFI_OPTIONS[@]}") ||
+		exit $?
+	activate-vpn "$activation_code" >/dev/null || exit_error $? "Could not activate ExpressVPN"
+}
+
+#######################################
+# Determine if ExpressVPN is activated.
+# Arguments:
+#   None
+#######################################
+is_vpn_activated() {
+	expressvpn status |
+		perl -pe 's/\e\[[\d;]*m//g' |
+		grep -e 'Not Activated'
+}
+
+###########################################
+# Determine if user is currently connected.
+# Arguments:
+#   None
+##########################################
+is_connected() {
+	# Use perl to remove the ANSI colors from the output
+	expressvpn status |
+		perl -pe 's/\e\[[\d;]*m//g' |
+		grep -e 'Connected'
+}
+
+############################################
+# Helper to display possible errors in Rofi.
+# Arguments
+#   Error code
+#   Error message
+############################################
+exit_error() {
+	local code="$1"
+	local message="$2"
+
+	rofi -e "$message" "${ROFI_OPTIONS[@]}"
+	exit "$code"
+}
+
+main() {
+	# Use GNU getopt to parse command line arguments
+	if ! ARGUMENTS=$(getopt -o c:C --long connect,help,version -- "$@"); then
+		exit_error 1 "Failed to parse command-line arguments"
+	fi
+	eval set -- "$ARGUMENTS"
+	while true; do
+		case "$1" in
+		--help)
+			cat <<-USAGE
+				$NAME $VERSION
+
+				Description:
+
+				 This is a helper script to control ExpressVPN using Rofi.
+
+				 Its main purpose is to allow you to connect to the different
+				 locations ExpressVPN provides, by default the script displays
+				 the recommended ones, however, the full list can also be
+				 displayed if you need to.
+
+				 The script enhances the experience of using ExpressVPN, for example:
+				 You can connect to the smart location if you don't require (or don't want)
+				 to connect to an specific location, allows you to connect to any
+				 location without having to disconnect first (the script does this for you) and
+				 lastly it allows you to activate ExpressVPN without leaving the widget.
+
+				Usage:
+				  $NAME [options] -- [rofi options]
+
+				Options:
+				  --help
+				      Show this help text and exit.
+
+				  --version
+				      Show version information and exit.
+
+				Quick Actions:
+				  When hovering over an item in the rofi menu, you can make use of Quick Actions.
+
+				  $KB_DISCONNECT Disconnect from VPN
+
+				  $KB_ALL_LOCATIONS Display list of all VPN locations
+				  $KB_RECOMMENDED_LOCATIONS Display list of recommended VPN locations (default)
+
+				  $KB_SMART_CONNECT Smart connect mode, select a location automatically based on your location
+
+				Examples:
+				  # Default options work well
+				  $NAME
+
+				  # Place rofi on top of screen, like a Quake console
+				  $NAME -- -location 2
+			USAGE
+			shift
+			exit 0
+			;;
+		--version)
+			echo "$NAME $VERSION"
+			shift
+			exit 0
+			;;
+		--connect)
+			echo "Connecting to smart location..."
+			connect "smart"
+			shift
+			exit 0
+			;;
+		--)
+			shift
+			ROFI_OPTIONS=("$@")
+			break
+			;;
+		*) ;;
+		esac
+	done
+}
+
+main "$@"
+is_active=$(is_vpn_activated)
+
+if [[ -z "$is_active" ]]; then
+	load_locations "recommended"
+	show_locations
+else
+	activate
+	load_locations "recommended"
+	show_locations
+fi
