@@ -6,6 +6,16 @@
 
 </div>
 
+## What this does?
+
+This extension allows you to:
+
+1. List recommended (**default**) or **all** locations `ExpressVPN` provides.
+1. Activate `ExpressVPN` from the widget.
+1. Connect to other locations without manually disconnecting first.
+
+I made this extension mainly for the third point and also because I'm a have `i3` user and I didn't like to use neither `ExpressVPN` CLI nor their browser extensions.
+
 ## Installation
 
 Install from [AUR (rofi-expressvpn-git)](https://aur.archlinux.org/packages/rofi-expressvpn-git/), or:
