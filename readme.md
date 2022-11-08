@@ -6,7 +6,7 @@
 
 </div>
 
-## What this does?
+## What it does?
 
 This extension allows you to:
 
