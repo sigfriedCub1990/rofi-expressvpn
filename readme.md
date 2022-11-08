@@ -1,7 +1,8 @@
 <div align="center">
 <h3>rofi-expressvpn</h3>
+<img src="https://github.com/sigfriedcub1990/rofi-expressvpn/raw/master/.meta/rofi-expressvpn.gif">
 
-expressvpn rofi dmenu
+`expressvpn` `rofi` `dmenu`
 
 </div>
 
