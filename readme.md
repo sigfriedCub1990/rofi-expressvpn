@@ -6,6 +6,9 @@
 
 </div>
 
+![AUR maintainer](https://img.shields.io/aur/maintainer/rofi-expressvpn-git?style=flat-square)
+![AUR version](https://img.shields.io/aur/version/rofi-expressvpn-git?style=flat-square)
+
 ## What it does?
 
 This extension allows you to:
