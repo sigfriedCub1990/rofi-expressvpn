@@ -14,7 +14,7 @@ This extension allows you to:
 1. Activate `ExpressVPN` from the widget.
 1. Connect to other locations without manually disconnecting first.
 
-I made this extension mainly for the third point and also because I'm a have `i3` user and I didn't like to use neither `ExpressVPN` CLI nor their browser extensions.
+I made this extension mainly for the third point and also because I'm a heavy `i3` user and I didn't like to use neither `ExpressVPN` CLI nor their browser extensions.
 
 ## Installation
 
