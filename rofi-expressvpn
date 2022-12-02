@@ -173,8 +173,14 @@ on_rofi_exit() {
 		load_locations "all"
 		show_locations
 		;;
-		"${ENTER_CMD[@]}"
 	12) # smart connect shortcut
+		connected=$(is_connected)
+		if [[ -n "$connected" ]]; then
+			disconnect
+			"${ENTER_CMD[@]}"
+		else
+			"${ENTER_CMD[@]}"
+		fi
 		;;
 	13) # view recommended shortcut
 		CURRENT_VIEW="recommended"
