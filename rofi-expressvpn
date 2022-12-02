@@ -164,19 +164,19 @@ show_locations() {
 #######################################
 on_rofi_exit() {
 	case "$1" in
-	10)
+	10) # disconnect shortcut
 		disconnect
 		show_locations
 		;;
-	11)
+	11) # view all location shortcut
 		CURRENT_VIEW="all"
 		load_locations "all"
 		show_locations
 		;;
-	12)
 		"${ENTER_CMD[@]}"
+	12) # smart connect shortcut
 		;;
-	13)
+	13) # view recommended shortcut
 		CURRENT_VIEW="recommended"
 		load_locations "recommended"
 		show_locations
